@@ -1,8 +1,8 @@
+"""
+This module provides additional functionality for Polars DataFrames.
+"""
 import polars as pl
 from typing import List
-from datetime import timedelta
-from cooc.classify import classify_trades
-from cooc.features import add_coi
 
 # Register a custom namespace for our additional DataFrame functionality.
 @pl.api.register_dataframe_namespace("_dt")
@@ -98,16 +98,3 @@ class TradeMethods:
         df = self._df.with_columns(
             pl.col(col).abs().alias('size'))
         return df
-    
-    def classify_trades(self, products: List[str], ts_col: str, delta: str | timedelta) -> pl.DataFrame:
-        """
-        Classify trades based on co-trading relationships.
-        """
-        mapping: dict = {0: "iso", 1: "nis-c", 2: "nis-s", 3: "nis-b"}
-        return classify_trades(self._df, products, ts_col, delta, mapping)
-    
-    def coi(self, products: List[str], ts_col: str, delta: str | timedelta, type: str) -> pl.DataFrame:
-        """
-        Add a COI column to the DataFrame.
-        """
-        return add_coi(self._df, products, ts_col, delta, type)

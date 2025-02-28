@@ -26,7 +26,7 @@ def nanoseconds(input: Union[str, datetime]) -> int:
     assert isinstance(input, datetime) or isinstance(input, str)
     if isinstance(input, str):
         try:
-            input = datetime.strptime(input, "%y%m%d.%H%M")
+            input = datetime.strptime(input, "%y%m%d.%H%M%S")
         except ValueError:
             print("Input string not in correct format")
     # Deal with some timezone issues
