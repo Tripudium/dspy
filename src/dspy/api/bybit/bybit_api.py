@@ -151,37 +151,47 @@ class ByBitManager(Exchange):
         return [float(fees['takerFeeRate']), float(fees['makerFeeRate'])]
 
     # Position info
-    def get_position(self, symbol: str) -> dict:
-        """Return positions in products specified by symbol."""
-        p = {}
-        pos = self.s.get_positions(
-            category='linear', 
-            symbol=symbol,
-            )['result']['list'][0]
-        sign = 1 if pos['side'] == 'Buy' else -1
-        if pos['size'] != '0':
-            p = {
-                'size': sign*float(pos['size']),
-                'aep': float(pos['avgPrice']),
-                'mark_price': float(pos['markPrice']),
-                'value': float(pos['positionValue']),
-                'leverage': float(pos['leverage']),
-                'position_balance': float(pos['positionBalance']),
-                'unrealized_pnl': float(pos['unrealisedPnl']),
-                'realized_pnl': float(pos['curRealisedPnl'])
-            }
-        else:
-            p = {
-                'size': 0,
-                'aep': 0,
-                'mark_price': float(pos['markPrice']),
-                'value': 0,
-                'leverage': float(pos['leverage']),
-                'position_balance': 0,
-                'unrealized_pnl': 0,
-                'realized_pnl': float(pos['curRealisedPnl'])
-            }
-        return p
+    def get_positions(self, symbols: list[str]) -> dict:
+        """
+        Return positions in product specified by symbol.
+
+        Arguments:
+            symbol -- the product symbol
+        """
+        positions = {}
+        for s in symbols:
+            pos = self.s.get_positions(
+                category='linear', 
+                symbol=s,
+                )['result']['list'][0]
+            sign = 1 if pos['side'] == 'Buy' else -1
+            if pos['size'] != '0':
+                p = {
+                    'size': sign*float(pos['size']),
+                    'aep': float(pos['avgPrice']),
+                    'mark_price': float(pos['markPrice']),
+                    'value': float(pos['positionValue']),
+                    'leverage': float(pos['leverage']),
+                    'position_balance': float(pos['positionBalance']),
+                    'unrealized_pnl': float(pos['unrealisedPnl']),
+                    'realized_pnl': float(pos['curRealisedPnl'])
+                }
+            else:
+                p = {
+                    'size': 0,
+                    'aep': 0,
+                    'mark_price': float(pos['markPrice']),
+                    'value': 0,
+                    'leverage': float(pos['leverage']),
+                    'position_balance': 0,
+                    'unrealized_pnl': 0,
+                    'realized_pnl': float(pos['curRealisedPnl'])
+                }
+            positions[s] = p
+
+        if len(symbols) == 1:
+            positions = positions[symbols[0]]
+        return positions
 
     # Trading
     def place_order(
@@ -191,7 +201,15 @@ class ByBitManager(Exchange):
             price: float | None = None, 
             type: str = 'Market'
             ) -> dict:
-        """Place limit order at given price or market order."""
+        """
+        Place limit order at given price or market order.
+
+        Arguments:
+            symbol -- the product symbol
+            qty -- the quantity to trade
+            price -- the price to trade at
+            type -- the type of order to place
+        """
         if price is None:
             price = 0.
         response = self.s.place_order(
@@ -233,8 +251,14 @@ class ByBitManager(Exchange):
         return response
     
     def place_batch_order(self, symbol: str, qtys: list, prices: list) -> dict:
-        """Place a collection of orders for a given product."""
-        assert len(qtys) == len(prices)
+        """
+        Place a collection of orders for a given product.
+
+        Arguments:
+            symbol -- the product symbol
+            qtys -- the quantities to trade
+            prices -- the prices to trade at
+        """
         orders = [
             {'category': 'linear',
              'symbol': symbol,
@@ -250,7 +274,13 @@ class ByBitManager(Exchange):
         return resp
     
     def cancel_order(self, symbol: str, order_id: str):
-        """Cancel specific limit order based on order id."""
+        """
+        Cancel specific limit order based on order id.
+
+        Arguments:
+            symbol -- the product symbol
+            order_id -- the order id to cancel
+        """
         resp = self.s.cancel_order(
             category = 'linear',
             symbol = symbol,
@@ -259,7 +289,13 @@ class ByBitManager(Exchange):
         return resp['retCode']
     
     def cancel_batch_order(self, symbol: str, order_ids: list) -> dict:
-        """Cancel a list of orders for one product based on order ids."""
+        """
+        Cancel a list of orders for one product based on order ids.
+
+        Arguments:
+            symbol -- the product symbol
+            order_ids -- the order ids to cancel
+        """
         to_cancel = [{'category': 'linear', 
                       'symbol': symbol,
                       'order_id': i} 
@@ -269,28 +305,49 @@ class ByBitManager(Exchange):
         return resp['retCode']
     
     def cancel_all_orders(self, symbol: str) -> dict:
-        """Cancel all outstanding orders for a set of products."""
+        """
+        Cancel all outstanding orders for a set of products.
+
+        Arguments:
+            symbol -- the product symbol
+        """
         resp = self.s.cancel_all_orders(
             category='linear', 
             symbol=symbol)['retCode']
         return resp
 
-    def close_positions(self, symbols):
-        """Close positions for a list of products."""
-        p = self.get_positions(symbols=symbols)
-        resp = {}
+    def close_positions(self, symbols: list[str]) -> dict:
+        """
+        Close positions for a list of products.
+
+        Arguments:
+            symbols -- the product symbols
+        """
+        positions = self.get_positions(symbols)
+        responses = {}
         for s in symbols:
-            resp[s] = self.s.place_order(
-                category = 'linear',
-                symbol = s,
-                side = 'Sell' if p[s]['side'] == 'Buy' else 'Buy',
-                orderType ='Market',
-                qty = p[s]['size']
+            p = positions[s]
+            if p['size'] != 0:
+                resp = self.s.place_order(
+                    category = 'linear',
+                    symbol = s,
+                    side = 'Sell' if p['size'] > 0 else 'Buy',
+                    orderType ='Market',
+                    qty = str(abs(p['size']))
                 )['retCode']
-        return resp
+            else:
+                resp = None
+            responses[s] = resp
+        return responses
 
     def set_trading_stop(self, symbol: str, stop_price: int) -> dict:
-        """Set stop loss."""
+        """
+        Set stop loss.
+
+        Arguments:
+            symbol -- the product symbol
+            stop_price -- the stop loss price
+        """
         resp = self.s.set_trading_stop(
             category = 'linear',
             symbol = symbol,
@@ -300,9 +357,16 @@ class ByBitManager(Exchange):
 
     # Various helper and dummy methods
     def wait(self, timeout: float):
-        """Wait for an indicated amount of time."""
+        """
+        Wait for an indicated amount of time.
+
+        Arguments:
+            timeout -- the amount of time to wait
+        """
         time.sleep(timeout)
 
     def next(self):
-        """For compatibility with simulator."""
+        """
+        For compatibility with simulator.
+        """
         return True
