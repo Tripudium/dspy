@@ -36,6 +36,17 @@ def nanoseconds(input: Union[str, datetime]) -> int:
     timestamp = 1000 * (calendar.timegm(time_tuple) * 1000 * 1000 + input.microsecond)
     return timestamp
 
+def round_up_to_nearest(dt: datetime, td: timedelta) -> datetime:
+    """
+    Round a datetime up to the nearest timedelta.
+    """
+    dt_seconds = dt.timestamp() 
+    td_seconds = td.total_seconds()
+    remainder = dt_seconds % td_seconds
+    if remainder > 0:
+        return dt + timedelta(seconds=(td_seconds - remainder))
+    return dt 
+
 def str_to_timedelta(s: str) -> timedelta:
     """
     Convert a string like '30s' to a timedelta.
