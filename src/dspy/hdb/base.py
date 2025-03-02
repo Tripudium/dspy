@@ -43,8 +43,8 @@ class DataLoader:
         """
         logger.info("Initializing DataLoader with path %s"%root)
         self.root = root
-        self.raw_path = root / "raw"
-        self.processed_path = root / "processed"
+        self._raw_path = Path(root) / "raw"
+        self._processed_path = Path(root) / "processed"
         # maintain a cache of dataframes
         if cache:
             self.cache = {}
