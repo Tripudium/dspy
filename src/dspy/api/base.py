@@ -27,7 +27,7 @@ class Exchange:
         """
         raise NotImplementedError("get_mid not implemented")
     
-    def get_ask(self, _symbol: str) -> list[float]:
+    def get_ask(self, _symbol: str, _depth: int = 1) -> list[float]:
         """
         Return best ask price and volume.
 
@@ -36,7 +36,7 @@ class Exchange:
         """
         raise NotImplementedError("get_ask not implemented")
     
-    def get_bid(self, _symbol: str) -> list[float]:
+    def get_bid(self, _symbol: str, _depth: int = 1) -> list[float]:
         """
         Return best bid price and volume.
 
@@ -64,6 +64,12 @@ class Exchange:
             limit -- the number of trades to return
         """
         raise NotImplementedError("get_trades not implemented")
+    
+    def get_latency(self) -> float:
+        """
+        Return latency of exchange.
+        """
+        raise NotImplementedError("get_latency not implemented")
     
     # Account info
     def get_wallet_balance(self) -> float:

@@ -3,6 +3,7 @@ This module provides a simple interface to the pybit library functions.
 """
 import time
 import logging
+import numpy as np
 import pybit.unified_trading as bb
 
 # Local imports
@@ -26,6 +27,7 @@ class ByBitManager(Exchange):
             config.api_key -- the public API key
             config.api_secret -- the private API key
         """
+        super().__init__()
         self.s = bb.HTTP(
             api_key=config.api_key,
             api_secret=config.api_secret,
@@ -46,34 +48,6 @@ class ByBitManager(Exchange):
             )['result']['list'][0]['lastPrice']
         return float(last_price)
     
-    def get_ask(self, symbol: str) -> list[float]:
-        """
-        Return best ask price and volume.
-
-        Arguments:
-            symbol -- the product symbol
-        """
-        ask = self.s.get_orderbook(
-            category="linear",
-            symbol=symbol,
-            limit=1
-            )['result']['a'][0]
-        return [float(ask[0]), float(ask[1])]
-    
-    def get_bid(self, symbol: str) -> list[float]:
-        """
-        Return best bid price and volume.
-
-        Arguments:
-            symbol -- the product symbol
-        """
-        bid = self.s.get_orderbook(
-            category="linear",
-            symbol=symbol,
-            limit=1
-            )['result']['b'][0]
-        return [float(bid[0]), float(bid[1])]
-    
     def get_orderbook(self, symbol: str, depth: int = 25) -> list[float]:
         """
         Return orderbook for product.
@@ -87,8 +61,74 @@ class ByBitManager(Exchange):
             symbol=symbol,
             limit=depth
             )['result']
-        
+        bids = np.array(orderbook['b'], dtype=float)
+        asks = np.array(orderbook['a'], dtype=float)
+        orderbook = {
+            'b': bids,
+            'a': asks,
+            'ts': orderbook['ts'],
+            'cts': orderbook['cts']
+        }
         return orderbook
+    
+    def get_ask(self, symbol: str, depth: int = 1) -> list[float]:
+        """
+        Return best ask price and volume.
+
+        Arguments:
+            symbol -- the product symbol
+        """
+        ask = self.get_orderbook(symbol, depth=1)['a'][0]
+        return [float(ask[0]), float(ask[1])]
+    
+    def get_bid(self, symbol: str, depth: int = 1) -> list[float]:
+        """
+        Return best bid price and volume.
+
+        Arguments:
+            symbol -- the product symbol
+        """
+        bid = self.get_orderbook(symbol, depth=1)['b'][0]
+        return [float(bid[0]), float(bid[1])]
+    
+    def get_trades(self, symbol: str, limit: int = 100) -> list[float]:
+        """
+        Return trades for product.
+
+        Arguments:
+            symbol -- the product symbol
+            limit -- the number of trades to return
+        """
+        trades = self.s.get_public_trade_history(
+            category="linear",
+            symbol=symbol,
+            limit=limit
+            )['result']['list']
+        trades = [
+            {
+                'ts': t['time'],
+                'price': float(t['price']),
+                'qty': float(t['size']),
+                'side': 1 if t['side'] == 'Buy' else -1
+            } for t in trades
+        ]
+        return trades
+
+    def get_latency(self, symbol: str, depth: int = 1) -> float:
+        """
+        Return latency of exchange.
+
+        Arguments:
+            symbol -- the product symbol
+            depth -- the depth of the orderbook
+        """
+        orderbook = self.s.get_orderbook(
+            category="linear",
+            symbol=symbol,  
+            limit=depth,
+            )['result']
+        latency = orderbook['ts']-orderbook['cts']
+        return latency
 
     # Account info
     def get_wallet_balance(self) -> float:
