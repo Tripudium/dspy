@@ -3,23 +3,10 @@ This module provides additional functionality for Polars DataFrames.
 """
 import polars as pl
 
+from dspy.features import add_mid, add_spread, add_volume, add_vwap, add_rel_returns, add_sig_pnl, agg_trades, add_side, add_size
 
-def _get_products(df: pl.DataFrame, cols: list[str]) -> list[str]:
-    all_columns = df.columns
-    product_parts = []
-    for col in cols:
-        for column_name in all_columns:
-            if column_name.startswith(f"{col}_"):
-                product_part = column_name[len(col)+1:]
-                product_parts.append(product_part)
-    if product_parts != []: 
-        products = list(set(product_parts))
-    else:
-        products = []
-    return products
-
-@pl.api.register_dataframe_namespace("_dt")
-@pl.api.register_lazyframe_namespace("_dt")
+@pl.api.register_dataframe_namespace("ds")
+@pl.api.register_lazyframe_namespace("ds")
 class DatetimeMethods:
     def __init__(self, df: pl.DataFrame):
         self._df = df
@@ -29,9 +16,16 @@ class DatetimeMethods:
         Add a datetime column to the DataFrame.
         """
         return self._df.with_columns([pl.from_epoch(ts_col, time_unit='ns').alias('dts')])
+    
+    def aggregate(self, cols: list[str]) -> pl.DataFrame:
+        """
+        Keep only the rows where a change happens in columns indexed by cols.
+        """
+        agg_func = [pl.col(col).first() for col in cols]
+        return self._df.group_by(cols, maintain_order=True).agg(agg_func)
 
-@pl.api.register_dataframe_namespace("_feat")
-@pl.api.register_lazyframe_namespace("_feat")
+@pl.api.register_dataframe_namespace("feature")
+@pl.api.register_lazyframe_namespace("feature")
 class FeatureMethods:
     def __init__(self, df: pl.DataFrame):
         self._df = df
@@ -40,85 +34,34 @@ class FeatureMethods:
         """
         Add a mid column to the DataFrame.
         """
-        if products is None:
-            products = _get_products(self._df, cols)
-            
-        if products == []:
-            return self._df.with_columns(
-                ((pl.col(f"{cols[0]}") + pl.col(f"{cols[1]}"))/2).alias('mid'))
-        for product in products:
-            self._df = self._df.with_columns(
-                ((pl.col(f"{cols[0]}_{product}") + pl.col(f"{cols[1]}_{product}"))/2).alias(f'mid_{product}'))
-        return self._df
+        return add_mid(self._df, products, cols)
 
     def add_spread(self, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1']) -> pl.DataFrame:
         """
         Add a spread column to the DataFrame.
         """
-        if products is None:
-            products = _get_products(self._df, cols)
-
-        if products == []:
-            return self._df.with_columns(
-                (pl.col(f"{cols[0]}") - pl.col(f"{cols[1]}")).alias('spread'))
-        for product in products:
-            self._df = self._df.with_columns(
-                (pl.col(f"{cols[0]}_{product}") - pl.col(f"{cols[1]}_{product}")).alias(f'spread_{product}'))
-        return self._df
+        return add_spread(self._df, products, cols)
     
     def add_volume(self, products: list[str] | None = None, cols: list[str]=['vol__s0', 'vol__s1']) -> pl.DataFrame:
         """
         Add a volume column to the DataFrame.
         """
-        if products is None:
-            products = _get_products(self._df, cols)
-
-        if products == []:
-            return self._df.with_columns(
-                (pl.col(f"{cols[0]}") + pl.col(f"{cols[1]}")).alias('volume'))
-        for product in products:
-            self._df = self._df.with_columns(
-                (pl.col(f"{cols[0]}_{product}") + pl.col(f"{cols[1]}_{product}")).alias(f'volume_{product}'))
-        return self._df
+        return add_volume(self._df, products, cols)
 
     def add_vwap(self, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1', 'vol__s0', 'vol__s1']) -> pl.DataFrame:
         """
         Add a VWAP column to the DataFrame.
         """
-        if products is None:
-            products = _get_products(self._df, cols)
+        return add_vwap(self._df, products, cols)
 
-        if products == []:
-            self._df = self._df.with_columns(
-                pl.when(pl.col(f"{cols[2]}") + pl.col(f"{cols[3]}") > 0)
-                .then(
-                    (
-                        (pl.col(f"{cols[0]}") * pl.col(f"{cols[2]}") + 
-                         pl.col(f"{cols[1]}") * pl.col(f"{cols[3]}")) /
-                        (pl.col(f"{cols[2]}") + pl.col(f"{cols[3]}"))
-                    )
-                )
-                .otherwise(pl.lit(0))
-                .alias('vwap')
-            )
-        else:
-            for product in products:
-                self._df = self._df.with_columns(
-                    pl.when(pl.col(f"{cols[2]}_{product}") + pl.col(f"{cols[3]}_{product}") > 0)
-                    .then(
-                        (
-                            (pl.col(f"{cols[0]}_{product}") * pl.col(f"{cols[2]}_{product}") + 
-                             pl.col(f"{cols[1]}_{product}") * pl.col(f"{cols[3]}_{product}")) /
-                            (pl.col(f"{cols[2]}_{product}") + pl.col(f"{cols[3]}_{product}"))
-                        )
-                    )
-                    .otherwise(pl.lit(0))
-                    .alias(f'vwap_{product}')
-                )
-        return self._df
+    def add_rel_returns(self, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1']) -> pl.DataFrame:
+        """
+        Add a relative return column to the DataFrame.
+        """
+        return add_rel_returns(self._df, products, cols)
     
-@pl.api.register_dataframe_namespace("_trade")
-@pl.api.register_lazyframe_namespace("_trade")
+@pl.api.register_dataframe_namespace("trade")
+@pl.api.register_lazyframe_namespace("trade")
 class TradeMethods:
     def __init__(self, df: pl.DataFrame):
         self._df = df
@@ -127,20 +70,34 @@ class TradeMethods:
         """
         Aggregate trades by timestamp and price.
         """
-        return self._df.group_by(cols, maintain_order=True).agg(pl.col('trade_id').first(), pl.col('qty').sum())
+        return agg_trades(self._df, cols)
     
     def add_side(self, col: str='qty') -> pl.DataFrame:
         """
         Add a side column to the DataFrame.
         """
-        df = self._df.with_columns(
-            pl.when(pl.col(col) > 0).then(1).otherwise(-1).alias('side'))
-        return df
+        return add_side(self._df, col)
     
     def add_size(self, col: str='qty') -> pl.DataFrame:
         """
         Add a size column to the DataFrame.
         """
-        df = self._df.with_columns(
-            pl.col(col).abs().alias('size'))
-        return df
+        return add_size(self._df, col)
+    
+@pl.api.register_dataframe_namespace("target")
+@pl.api.register_lazyframe_namespace("target")
+class TargetMethods:
+    def __init__(self, df: pl.DataFrame):
+        self._df = df
+
+    def add_sig_pnl(self,
+                    ts_col: str = 'ts', 
+                    col: str = 'prc',
+                    signal: str | None = None,
+                    horizon: str = '1s',
+                    in_bp: bool = True,
+                    fee_in_bp: float = 0.0) -> pl.DataFrame:
+        """ 
+        Add a signal PnL column to the DataFrame.
+        """
+        return add_sig_pnl(self._df, ts_col, col, signal, horizon, in_bp, fee_in_bp)

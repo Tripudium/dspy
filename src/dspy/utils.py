@@ -36,6 +36,12 @@ def nanoseconds(input: Union[str, datetime]) -> int:
     timestamp = 1000 * (calendar.timegm(time_tuple) * 1000 * 1000 + input.microsecond)
     return timestamp
 
+def timedelta_to_nanoseconds(td: timedelta) -> int:
+    """
+    Convert a timedelta to a nanoseconds.
+    """
+    return int(td.total_seconds() * 1_000_000_000)
+
 def round_up_to_nearest(dt: datetime, td: timedelta) -> datetime:
     """
     Round a datetime up to the nearest timedelta.

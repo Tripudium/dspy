@@ -59,7 +59,7 @@ class DataLoader:
         Returns:
             Path: The directory containing raw data files.
         """
-        return self._raw_path
+        return str(self._raw_path)
     
     @property
     def processed_path(self):
@@ -69,7 +69,7 @@ class DataLoader:
         Returns:
             Path: The directory containing processed data files.
         """
-        return self._processed_path
+        return str(self._processed_path)
 
     @raw_path.setter
     def raw_path(self, path: str | Path):
