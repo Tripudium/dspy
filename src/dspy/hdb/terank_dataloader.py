@@ -49,10 +49,10 @@ class TerankData(DataLoader):
             df = df.select([pl.col("tse").alias("ts"), pl.col("prc"), pl.col("qty"), pl.col("blended_id").alias("trade_id")])
             df = df.with_columns(pl.lit(product).alias('product'))
             dfs.append(df)
-        df = pl.concat(dfs).sort('ts')
+        tdf = pl.concat(dfs).sort('ts')
         if not lazy:
-            df = df.collect()
-        return df
+            tdf = tdf.collect()
+        return tdf
 
     def load(self, products: list[str], times: list[str], col: str = "mid", freq: str = "1s", lazy=False) -> pl.DataFrame:
         """
