@@ -10,6 +10,7 @@ from dspy.features import add_mid, add_spread, add_volume, add_vwap, add_rel_ret
 class DatetimeMethods:
     def __init__(self, df: pl.DataFrame):
         self._df = df
+        print("Hello")
 
     def add_datetime(self, ts_col: str='ts') -> pl.DataFrame:
         """

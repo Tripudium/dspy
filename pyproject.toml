@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Martin", email = "martin@tripudium.tech" }
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
     "ipykernel>=6.29.5",
     "ipython==8.32.0",
