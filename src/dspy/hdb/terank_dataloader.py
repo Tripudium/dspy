@@ -32,7 +32,34 @@ class TerankData(DataLoader):
         """
         Load book data for a given product and times.
         """
-        return None
+        if isinstance(products, str):
+            products = [products]
+        timestr = f"{times[0][:-2]}:{times[1][:-2]}"
+        
+        dfs = []
+
+        for product in products:
+            prodname = product+"__BNCE_USDTM"
+            df = load_contract(update_type="depth", contract_spec=prodname, times_range=timestr)
+            df = df.select([pl.col("tse").alias("ts"), 
+                            pl.col("prc_s0").alias("prc__s0"), 
+                            pl.col("prc_s1").alias("prc__s1"),
+                            pl.col("vols_s0").alias("vol__s0"),
+                            pl.col("vols_s1").alias("vol__s1")])
+            if lazy:
+                columns = df.collect_schema().names()
+            else:
+                df = df.collect()
+                columns = df.columns
+            rename_map = {
+                col: f"{col}_{product}" for col in columns if col != "ts"
+            }
+            df = df.rename(rename_map)
+            dfs.append(df)
+        merged_df = pl.concat([df.select('ts') for df in dfs], how='vertical').unique('ts').sort('ts')
+        for i, df in enumerate(dfs):
+            merged_df = merged_df.join_asof(df, on='ts')
+        return merged_df.drop_nulls().sort('ts')
     
     def load_trades(self, products: list[str] | str, times: list[str], lazy=False) -> pl.DataFrame:
         """
