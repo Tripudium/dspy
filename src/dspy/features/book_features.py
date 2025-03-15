@@ -90,12 +90,48 @@ def add_vwap(df: pl.DataFrame, products: list[str] | None = None, cols: list[str
             )
     return df
 
-def add_rel_returns(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1']) -> pl.DataFrame:
+def add_rel_returns(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['mid']) -> pl.DataFrame:
     """
     Add a relative return column to the DataFrame.
     """
     if products is None:
         products = get_products(df, cols)
+    if isinstance(cols, str):
+        cols = [cols]
 
-    return
+    if products == []:
+        df = df.with_columns(
+            pl.col(f"{cols[0]}").pct_change().alias("rel_return")
+        )
+    else:
+        df = df.with_columns(
+            [
+                pl.col(f"{col}_{product}").pct_change().alias(f"rel_return_{col}_{product}")
+                for col in cols
+                for product in products
+            ]
+        )
+    return df.drop_nulls()
     
+def add_log_returns(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['mid']) -> pl.DataFrame:
+    """
+    Add a log return column to the DataFrame.
+    """
+    if products is None:
+        products = get_products(df, cols)
+    if isinstance(cols, str):
+        cols = [cols]
+
+    if products == []:
+        df = df.with_columns(
+            pl.col(f"{cols[0]}").log().diff().alias("log_return")
+        )
+    else:
+        df = df.with_columns(
+            [
+                pl.col(f"{col}_{product}").log().diff().alias(f"log_return_{col}_{product}")
+                for col in cols
+                for product in products
+            ]
+        )
+    return df.drop_nulls()

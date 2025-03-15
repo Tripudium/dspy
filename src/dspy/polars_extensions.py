@@ -3,7 +3,7 @@ This module provides additional functionality for Polars DataFrames.
 """
 import polars as pl
 
-from dspy.features import add_mid, add_spread, add_volume, add_vwap, add_rel_returns, add_sig_pnl, agg_trades, add_side, add_size
+from dspy.features import add_mid, add_spread, add_volume, add_vwap, add_rel_returns, add_log_returns, add_sig_pnl, agg_trades, add_side, add_size
 
 @pl.api.register_dataframe_namespace("ds")
 @pl.api.register_lazyframe_namespace("ds")
@@ -54,11 +54,17 @@ class FeatureMethods:
         """
         return add_vwap(self._df, products, cols)
 
-    def add_rel_returns(self, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1']) -> pl.DataFrame:
+    def add_rel_returns(self, products: list[str] | None = None, cols: list[str]=['mid']) -> pl.DataFrame:
         """
         Add a relative return column to the DataFrame.
         """
         return add_rel_returns(self._df, products, cols)
+    
+    def add_log_returns(self, products: list[str] | None = None, cols: list[str]=['mid']) -> pl.DataFrame:
+        """
+        Add a log return column to the DataFrame.
+        """
+        return add_log_returns(self._df, products, cols)
     
 @pl.api.register_dataframe_namespace("trade")
 @pl.api.register_lazyframe_namespace("trade")
