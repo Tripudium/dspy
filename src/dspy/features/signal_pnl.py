@@ -17,7 +17,7 @@ def add_sig_pnl(
     """
 
     tdelta = str_to_timedelta(horizon)
-    if df[ts_col].dtype == pl.UInt64:
+    if df[ts_col].dtype == pl.UInt64 or df[ts_col].dtype == pl.Int64:
         tdelta = timedelta_to_nanoseconds(tdelta)
 
     expr_diff = (pl.col(f"fut_{col}") - pl.col(col))

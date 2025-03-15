@@ -30,31 +30,31 @@ class FeatureMethods:
     def __init__(self, df: pl.DataFrame):
         self._df = df
 
-    def add_mid(self, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1']) -> pl.DataFrame:
+    def add_mid(self, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1']) -> pl.DataFrame:
         """
         Add a mid column to the DataFrame.
         """
         return add_mid(self._df, products, cols)
 
-    def add_spread(self, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1']) -> pl.DataFrame:
+    def add_spread(self, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1']) -> pl.DataFrame:
         """
         Add a spread column to the DataFrame.
         """
         return add_spread(self._df, products, cols)
     
-    def add_volume(self, products: list[str] | None = None, cols: list[str]=['vol__s0', 'vol__s1']) -> pl.DataFrame:
+    def add_volume(self, products: list[str] | None = None, cols: list[str]=['vol_s0', 'vol_s1']) -> pl.DataFrame:
         """
         Add a volume column to the DataFrame.
         """
         return add_volume(self._df, products, cols)
 
-    def add_vwap(self, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1', 'vol__s0', 'vol__s1']) -> pl.DataFrame:
+    def add_vwap(self, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1', 'vol_s0', 'vol_s1']) -> pl.DataFrame:
         """
         Add a VWAP column to the DataFrame.
         """
         return add_vwap(self._df, products, cols)
 
-    def add_rel_returns(self, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1']) -> pl.DataFrame:
+    def add_rel_returns(self, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1']) -> pl.DataFrame:
         """
         Add a relative return column to the DataFrame.
         """

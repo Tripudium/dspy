@@ -40,12 +40,21 @@ class TerankData(DataLoader):
 
         for product in products:
             prodname = product+"__BNCE_USDTM"
-            df = load_contract(update_type="depth", contract_spec=prodname, times_range=timestr)
-            df = df.select([pl.col("tse").alias("ts"), 
-                            pl.col("prc_s0").alias("prc__s0"), 
-                            pl.col("prc_s1").alias("prc__s1"),
-                            pl.col("vols_s0").alias("vol__s0"),
-                            pl.col("vols_s1").alias("vol__s1")])
+            if depth == 1:
+                df = load_contract(update_type="bbo", contract_spec=prodname, times_range=timestr)
+                df = df.select([pl.col("tse").alias("ts"), 
+                                pl.col("prc_s0"),
+                                pl.col("prc_s1"),
+                                pl.col("vol_s0"),
+                                pl.col("vol_s1")])
+            else:
+                df = load_contract(update_type="depth", contract_spec=prodname, times_range=timestr)
+                df = df.select([pl.col("tse").alias("ts"), 
+                                pl.col("prc_s0"),
+                                pl.col("prc_s1"),
+                                pl.col("vols_s0"),
+                                pl.col("vols_s1")])
+                # TODO: Preprocess for different depths
             if lazy:
                 columns = df.collect_schema().names()
             else:

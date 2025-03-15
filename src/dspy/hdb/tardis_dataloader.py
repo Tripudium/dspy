@@ -30,7 +30,9 @@ class TardisData(DataLoader):
         """
         Load book data for a given product and times.
         """
-        return super().load_book(products, times, depth, lazy)
+        df = super().load_book(products, times, depth, lazy)
+        df = df.rename({"prc__s0": "prc_s0", "prc__s1": "prc_s1", "vol__s0": "vol_s0", "vol__s1": "vol_s1"})
+        return df
 
     def load(self, products: list[str], times: list[str], col: str = "mid", freq: str = "1s", lazy=False) -> pl.DataFrame:
         """
@@ -54,13 +56,13 @@ class TardisData(DataLoader):
         rdf = rdf.join_asof(df, on="dts", strategy="backward")
 
         if col == "mid":
-            rdf = rdf._feat.add_mid(cols=["prc__s0", "prc__s1"])
+            rdf = rdf._feat.add_mid(cols=["prc_s0", "prc_s1"])
             if len(products) > 1:
                 rdf = rdf.select([pl.col("dts").alias("ts")] + [pl.col(f"mid_{product}") for product in products])
             else:
                 rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("mid")])
         elif col == "vwap":
-            rdf = rdf._feat.add_vwap(cols=["prc__s0", "prc__s1", "vol__s0", "vol__s1"])
+            rdf = rdf._feat.add_vwap(cols=["prc_s0", "prc_s1", "vol_s0", "vol_s1"])
             if len(products) > 1:
                 rdf= rdf.select([pl.col("dts").alias("ts")] + [pl.col(f"vwap_{product}") for product in products]) 
             else:

@@ -9,7 +9,7 @@ import polars as pl
 from dspy.features.utils import get_products
 # Features for prices   
 
-def add_mid(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1']) -> pl.DataFrame:
+def add_mid(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1']) -> pl.DataFrame:
     """
     Add a mid column to the DataFrame.
     """
@@ -24,7 +24,7 @@ def add_mid(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]
             ((pl.col(f"{cols[0]}_{product}") + pl.col(f"{cols[1]}_{product}"))/2).alias(f'mid_{product}'))
     return df
 
-def add_spread(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1']) -> pl.DataFrame:
+def add_spread(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1']) -> pl.DataFrame:
     """
     Add a spread column to the DataFrame.
     """
@@ -39,7 +39,7 @@ def add_spread(df: pl.DataFrame, products: list[str] | None = None, cols: list[s
             (pl.col(f"{cols[0]}_{product}") - pl.col(f"{cols[1]}_{product}")).alias(f'spread_{product}'))
     return df
 
-def add_volume(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['vol__s0', 'vol__s1']) -> pl.DataFrame:
+def add_volume(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['vol_s0', 'vol_s1']) -> pl.DataFrame:
     """
     Add a volume column to the DataFrame.
     """
@@ -54,7 +54,7 @@ def add_volume(df: pl.DataFrame, products: list[str] | None = None, cols: list[s
             (pl.col(f"{cols[0]}_{product}") + pl.col(f"{cols[1]}_{product}")).alias(f'volume_{product}'))
     return df
 
-def add_vwap(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1', 'vol__s0', 'vol__s1']) -> pl.DataFrame:
+def add_vwap(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1', 'vol_s0', 'vol_s1']) -> pl.DataFrame:
     """
     Add a VWAP column to the DataFrame.
     """
@@ -90,7 +90,7 @@ def add_vwap(df: pl.DataFrame, products: list[str] | None = None, cols: list[str
             )
     return df
 
-def add_rel_returns(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['prc__s0', 'prc__s1']) -> pl.DataFrame:
+def add_rel_returns(df: pl.DataFrame, products: list[str] | None = None, cols: list[str]=['prc_s0', 'prc_s1']) -> pl.DataFrame:
     """
     Add a relative return column to the DataFrame.
     """
