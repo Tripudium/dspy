@@ -51,6 +51,11 @@ tdf = dl.load_trades(products=['BTCUSDT', 'ETHUSDT'], times=['250120.000100', '2
 tdf = tdf.trade.agg_trades().trade.add_side().ds.add_datetime()
 ```
 
+Fixed-frequency data:
+```python
+fdf = dl.load(products=['BTCUSDT', 'ETHUSDT'], times=['250120.000100', '250120.215000'], freq='1s')
+```
+
 There are additional features to add signal pnl, positions and pnl, various features, etc. Things are deliberately kept simple. See the [example notebook](examples/dataloading.ipynb) for more.
 
 ## Additional packages
