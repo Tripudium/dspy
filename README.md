@@ -1,6 +1,6 @@
 # dspy
 
-A Python data handling system for high-frequency data
+A Python data handling system for high-frequency data. Can handle both freely available data and act as a wrapper for proprietary packages.
 
 ## Installation
 
@@ -24,6 +24,36 @@ uv pip install -e /path/to/trpy-data
 ```
 
 Some further hacking may be necessary.
+
+## Usage
+
+Data is available in two forms: limit order book (LOB) and trade data. The available depth depends on the ultimate data source being used. The timestamps are given in nanosecond resolution as Unix timestamps. A simple dataloader and some helper function to convert Python datetime objects or strings of the form '240802.145010' into timestamps are provided.
+
+```python
+from dspy.hdb import get_dataset
+
+dl = get_dataset("terank") # uses trpy-data, replace with "tardis" or "bybit" for other sources
+```
+
+To get book data:
+
+```python
+df = dl.load_book(products=['BTCUSDT', 'ETHUSDT'], times=['250120.000100', '250120.215000'], depth=1, lazy=True)
+# Add human readable timestamp and mid prices
+df = df.ds.add_datetime('ts').feature.add_mid(products=['BTCUSDT'])
+```
+
+To get trade data:
+
+```python
+tdf = dl.load_trades(products, TIMES, lazy=True)
+# By default, the timestamp column is named 'ts'
+tdf = tdf.trade.agg_trades().trade.add_side().ds.add_datetime()
+```
+
+There are additional features to add signal pnl, positions, various features, etc. Things are deliberately kept simple. See the [example notebook](examples/dataloading.ipynb) for more.
+
+
 
 
 
