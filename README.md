@@ -51,11 +51,11 @@ tdf = dl.load_trades(products=['BTCUSDT', 'ETHUSDT'], times=['250120.000100', '2
 tdf = tdf.trade.agg_trades().trade.add_side().ds.add_datetime()
 ```
 
-There are additional features to add signal pnl, positions, various features, etc. Things are deliberately kept simple. See the [example notebook](examples/dataloading.ipynb) for more.
+There are additional features to add signal pnl, positions and pnl, various features, etc. Things are deliberately kept simple. See the [example notebook](examples/dataloading.ipynb) for more.
 
 ## Additional packages
 
-This package is used by downstream packages such as [cooc](https://github.com/Tripudium/cooc) and [statarb](https://github.com/Tripudium/statarb). Finer control over the data and better performance is provided by ```trpy-data```.
+This package is used by downstream packages such as [cooc](https://github.com/Tripudium/cooc) and [statarb](https://github.com/Tripudium/statarb). Finer control over the data (including dealing with delays) and better performance is provided by ```trpy-data```.
 
 
 

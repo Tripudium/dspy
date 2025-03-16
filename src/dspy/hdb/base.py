@@ -8,7 +8,7 @@ from datetime import datetime
 import polars as pl
 
 # Local imports
-from dspy.utils import nanoseconds
+from dspy.utils import nanoseconds, str_to_timedelta, round_up_to_nearest
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -169,11 +169,40 @@ class DataLoader:
             merged_df = merged_df.join_asof(df, on='ts')
         return merged_df.drop_nulls().sort('ts')
     
-    def load(self, _products: list[str], _times: list[str], _col: str="mid",_freq: str="1s", _lazy=False) -> pl.DataFrame:
+    def load(self, products: list[str], times: list[str], col: str = "mid", freq: str = "1s", lazy=False) -> pl.DataFrame:
         """
         Load data for a given product and times.
         """
-        raise NotImplementedError("Subclasses must implement this method")
+        df = self.load_book(products, times, lazy=lazy)
+        df = df.ds.add_datetime()
+        dtimes = [datetime.strptime(t, "%y%m%d.%H%M%S") for t in times]
+        try:
+            td = str_to_timedelta(freq)
+        except ValueError:
+            raise ValueError(f"Invalid frequency: {freq}")
+        
+        min_dt = round_up_to_nearest(df["dts"][0], td)
+        max_dt = dtimes[1]
+
+        # Make sure that every timestamp is present in the dataframe
+        rdf = pl.DataFrame(
+            { "dts": pl.datetime_range(min_dt, max_dt, freq, time_unit="ns", eager=True) }
+        )
+        rdf = rdf.join_asof(df, on="dts", strategy="backward")
+
+        if col == "mid":
+            rdf = rdf.feature.add_mid(cols=["prc_s0", "prc_s1"])
+            if len(products) > 1:
+                rdf = rdf.select([pl.col("dts").alias("ts")] + [pl.col(f"mid_{product}") for product in products])
+            else:
+                rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("mid")])
+        elif col == "vwap":
+            rdf = rdf.feature.add_vwap(cols=["prc_s0", "prc_s1", "vol_s0", "vol_s1"])
+            if len(products) > 1:
+                rdf= rdf.select([pl.col("dts").alias("ts")] + [pl.col(f"vwap_{product}") for product in products]) 
+            else:
+                rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("vwap")])
+        return rdf
         
     def download(self, product: str, month: str, type: str):
         pass
