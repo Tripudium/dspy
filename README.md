@@ -14,12 +14,14 @@ Install using the [uv](https://docs.astral.sh/uv/) package manager:
 uv python list
 uv .venv --python 3.13.2
 source .venv/bin/activate
-uv sync```
+uv sync
+```
 
 To make with work with the proprietary Terank ```trpy-data``` framework, this needs to be installed:
 
 ```zsh
-uv pip install -e /path/to/trpy-data```
+uv pip install -e /path/to/trpy-data
+```
 
 Some further hacking may be necessary.
 
