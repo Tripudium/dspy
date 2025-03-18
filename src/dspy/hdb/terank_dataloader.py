@@ -9,8 +9,8 @@ from datetime import datetime
 import polars as pl
 from polars import col as c
 
-from trpy_data.features import add_mid, add_vwap
-from trpy_data.hdb.utils import round_up_to_nearest, str_to_timedelta
+from dspy.utils import str_to_timedelta, round_up_to_nearest
+from dspy.features import add_mid, add_vwap
 from trpy_data.utils.polars.lazy_frame import TrnkLazyFrame
 
 from .registry import register_dataset
