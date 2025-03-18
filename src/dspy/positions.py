@@ -41,7 +41,7 @@ def add_positions(
         ).drop('local_pnl') 
         df = df.with_columns(
             pl.col(f'local_pnl_{product}').cum_sum().alias(f'pnl_{product}')
-        ).drop([f'local_pnl_{product}', f'pos_{product}'])
+        ).drop([f'local_pnl_{product}'])
 
     pnl_cols = [f'pnl_{product}' for product in products]
     if len(pnl_cols) == 1:
@@ -52,6 +52,26 @@ def add_positions(
         df = df.with_columns(
             pl.sum_horizontal(pnl_cols).alias('pnl')
         )
+    return df
+
+def rebalance_positions(
+        df: pl.DataFrame,
+        products: list[str] = ['BTCUSD'],
+        price_type: str = 'mid',
+        pos_cols: list[str] = ['pos'],
+        fees_bps: list[float] = [0.0]
+        ) -> pl.DataFrame:
+    """
+    Rebalance positions in the DataFrame.
+    """
+    df = df.with_columns(
+        [
+            pl.col(pos_cols[i]).diff(null_behavior='ignore').fill_null(df[pos_cols[i]][0]).alias(f'order_{product}')
+            for i, product in enumerate(products)
+        ]
+    )
+    order_cols = [f'order_{product}' for product in products]
+    df = add_positions(df, products=products, price_type=price_type, order_cols=order_cols, fees_bps=fees_bps)
     return df
 
 def create_test_positions_data() -> pl.DataFrame:
