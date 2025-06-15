@@ -8,7 +8,7 @@ from datetime import datetime
 import polars as pl
 
 # Local imports
-from dspy.utils import nanoseconds, str_to_timedelta, round_up_to_nearest
+from dspy.utils import str_to_timedelta, round_up_to_nearest
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -90,46 +90,6 @@ class DataLoader:
             path (str | Path): The directory to store processed data files.
         """
         self._processed_path = path
-
-    def _load_data(self, product: str, times: list[str], type: str, lazy=False) -> pl.DataFrame:    
-        """
-        Load data for a given product and times.
-        """
-        if len(times) != 2:
-            raise ValueError("Times must be a list of two strings in the format '%y%m%d.%H%M'")
-        try:
-            dtimes = [datetime.strptime(t, "%y%m%d.%H%M%S") for t in times]
-        except ValueError:
-            raise ValueError("Times must be in the format '%y%m%d.%H%M%S'")
-        months = get_months(dtimes[0], dtimes[1])
-
-        dfs = []
-        for month in months:
-            filename = "{}/{}_{}_{}.parquet".format(str(self.processed_path), product, month, type)
-            if not Path(filename).exists():
-                logger.info(f"File {filename} not found, downloading...")
-                self.download(product, month, type)
-                logger.info("File downloaded, processing...")
-                df = self.process(product, month, type)
-                if df is None:
-                    logger.info(f"Product {product} with type {type} and month {month} is not available")
-                    return None
-            else:
-                # check if the dataframe is already in the cache
-                if self.cache is not None and filename in self.cache and not lazy:
-                    df = self.cache[filename]
-                else:
-                    if lazy:
-                        df = pl.scan_parquet(filename)
-                    else:
-                        df = pl.read_parquet(filename)
-                        if self.cache is not None:
-                            self.cache[filename] = df
-            dfs.append(df)
-
-        df = pl.concat(dfs)
-        df = df.filter(pl.col('ts').is_between(nanoseconds(times[0]), nanoseconds(times[1])))
-        return df
     
     def load_trades(self, products: list[str] | str, times: list[str], lazy=False) -> pl.DataFrame:
         """
@@ -145,29 +105,11 @@ class DataLoader:
         df = pl.concat(dfs).sort('ts')
         return df
 
-    def load_book(self, products: list[str] | str, times: list[str], _depth: int = 10, lazy=False) -> pl.DataFrame:
+    def load_book(self, _product: str, _times: list[str], _depth: int = 10, _lazy: bool = False) -> pl.DataFrame:
         """
         Load book data for a given product and times.
         """
-        if isinstance(products, str):
-            return self._load_data(products, times, "book", lazy)
-        
-        dfs = []
-        for product in products:
-            df = self._load_data(product, times, "book", lazy).sort('ts')
-            if lazy:
-                columns = df.collect_schema().names()
-            else:
-                columns = df.columns
-            rename_map = {
-                col: f"{col}_{product}" for col in columns if col != "ts"
-            }
-            df = df.rename(rename_map)
-            dfs.append(df)
-        merged_df = pl.concat([df.select('ts') for df in dfs], how='vertical').unique('ts').sort('ts')
-        for i, df in enumerate(dfs):
-            merged_df = merged_df.join_asof(df, on='ts')
-        return merged_df.drop_nulls().sort('ts')
+        raise NotImplementedError
     
     def load(self, products: list[str], times: list[str], col: str = "mid", freq: str = "1s", lazy=False) -> pl.DataFrame:
         """
@@ -204,8 +146,8 @@ class DataLoader:
                 rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("vwap")])
         return rdf
         
-    def download(self, product: str, month: str, type: str):
-        pass
+    def download(self, _product: str, _month: str, _type: str):
+        raise NotImplementedError
 
-    def process(self, product: str, month: str, type: str):
-        return None
+    def process(self, _product: str, _month: str, _type: str):
+        raise NotImplementedError

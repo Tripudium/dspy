@@ -18,8 +18,8 @@ dependencies = [
     "pytest>=8.3.4",
     "pytz>=2025.1",
     "ruff>=0.9.9",
+    "tardis-dev>=2.0.0a14",
     "tqdm>=4.67.1",
-    "trpy-data",
     "typing>=3.10.0.0",
 ]
 
@@ -38,9 +38,6 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 dev-dependencies = ["pytest"]
-
-[tool.uv.sources]
-trpy-data = { path = "../trpy-data/dist/trpy_data-0.1.0-py3-none-any.whl" }
 
 [tool.pytest.ini_options]
 minversion = "6.0"
