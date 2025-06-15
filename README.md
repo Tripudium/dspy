@@ -27,40 +27,29 @@ Some further hacking may be necessary.
 
 ## Usage
 
-Data is available in two forms: limit order book (LOB) and trade data. The available depth depends on the ultimate data source being used. The timestamps are given in nanosecond resolution as Unix timestamps. A simple dataloader and some helper function to convert Python datetime objects or strings of the form '240802.145010' into timestamps are provided.
+Data is available in two forms: limit order book (LOB) and fixed frequency data (trade data will be included too). The available depth depends on the ultimate data source being used. The timestamps are given in nanosecond resolution as Unix timestamps. A simple dataloader and some helper function to convert Python datetime objects or strings of the form '240802.145010' into timestamps are provided.
 
 ```python
 from dspy.hdb import get_dataset
 
-dl = get_dataset("terank") # uses trpy-data, replace with "tardis" or "bybit" for other sources
+dl = get_dataset("tardis") # uses data provided by tardis
 ```
 
 To get book data:
 
 ```python
-df = dl.load_book(products=['BTCUSDT', 'ETHUSDT'], times=['250120.000100', '250120.215000'], depth=1, lazy=True)
+df = dl.load_book(product='BTCUSDT', times=['250120.000100', '250120.215000'], depth=10)
 # Add human readable timestamp and mid prices
 df = df.ds.add_datetime('ts').feature.add_mid(products=['BTCUSDT'])
 ```
 
-To get trade data:
+Note: the data is expected as parquet files in the data/tardis/processed directory. If the files are not present, the loader will attempt to fetch them from tardis and preprocess them. This, however, requires a Tardis subscription and a corresponding API key. The API key can be set in the environment variable TARDIS_API_KEY. As this is not provided by default, the already preprocessed parquet files for BTCUSDT from Binance from April to June 2025 are provided on [huggingface](https://huggingface.co/datasets/tripudium/tardisdata/tree/main). This data should be downloaded and placed in the data/tardis/processed directory.
 
-```python
-tdf = dl.load_trades(products=['BTCUSDT', 'ETHUSDT'], times=['250120.000100', '250120.215000'], lazy=True)
-# By default, the timestamp column is named 'ts'
-tdf = tdf.trade.agg_trades().trade.add_side().ds.add_datetime()
-```
-
-Fixed-frequency data:
-```python
-fdf = dl.load(products=['BTCUSDT', 'ETHUSDT'], times=['250120.000100', '250120.215000'], freq='1s')
-```
-
-There are additional features to add signal pnl, positions and pnl, various features, etc. Things are deliberately kept simple. See the [example notebook](examples/dataloading.ipynb) for more.
+See the [example notebook](examples/dataloading.ipynb) for more.
 
 ## Additional packages
 
-This package is used by downstream packages such as [cooc](https://github.com/Tripudium/cooc) and [statarb](https://github.com/Tripudium/statarb). Finer control over the data (including dealing with delays) and better performance is provided by ```trpy-data```.
+This package is used by downstream packages such as [cooc](https://github.com/Tripudium/cooc).
 
 
 
