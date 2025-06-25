@@ -17,7 +17,7 @@ import nest_asyncio
 # Local imports
 from dspy.hdb.base import DataLoader
 from dspy.hdb.registry import register_dataset
-from dspy.utils import nanoseconds
+from dspy.utils import nanoseconds, str_to_timedelta, round_up_to_nearest
 
 logger = logging.getLogger(__name__)    
 
@@ -69,16 +69,6 @@ class TardisData(DataLoader):
         super().__init__(root)
         self.market = market
 
-    def load_book(self, product: str, times: list[str], depth: int = 10, lazy=False, type: str = "book_snapshot_25") -> pl.DataFrame:
-        """
-        Load book data for a given product and times.
-        """
-        df = self._load_data(product, times, type, lazy)
-        price_columns = [[f"asks[{i}].price", f"asks[{i}].amount" , f"bids[{i}].price", f"bids[{i}].amount"] for i in range(depth)]
-        columns = ['ts', 'ts_local'] + [col for sublist in price_columns for col in sublist]
-        df = df.select(columns)
-        return df
-
     def _load_data(self, product: str, times: list[str], type: str="book_snapshot_25", lazy=False) -> pl.DataFrame:    
         """
         Load data for a given product and times.
@@ -118,6 +108,75 @@ class TardisData(DataLoader):
         df = pl.concat(dfs)
         df = df.filter(pl.col('ts').is_between(nanoseconds(times[0]), nanoseconds(times[1])))
         return df
+
+    def load_book(self, product: str, times: list[str], depth: int = 10, lazy=False, type: str = "book_snapshot_25") -> pl.DataFrame:
+        """
+        Load book data for a given product and times.
+        """
+        df = self._load_data(product, times, type, lazy)
+        price_columns = [[f"asks[{i}].price", f"asks[{i}].amount" , f"bids[{i}].price", f"bids[{i}].amount"] for i in range(depth)]
+        price_columns = [col for sublist in price_columns for col in sublist]
+        columns = ['ts', 'ts_local'] + price_columns
+        df = df.select(columns)
+        df = df.unique(subset=price_columns, maintain_order=True)
+        return df
+
+    def load_bar(self, products: list[str] | str, times: list[str], col: str = "mid", freq: str = "1s", lazy=False) -> pl.DataFrame:
+        """
+        Load data for a given set of products and times.
+        """
+        if isinstance(products, str):
+            # load book data for a single product
+            return self.load_book(products, times, depth=1, lazy=lazy, type="book_snapshot_25")
+
+        # Load book data for each product and combine into one dataframe
+        dfs = []
+
+        for product in products:
+            df = self.load_book(product, times, depth=1, lazy=lazy, type="book_snapshot_25").sort('ts')
+            if lazy:
+                columns = df.collect_schema().names()
+            else:
+                columns = df.columns
+            rename_map = {
+                col: f"{col}_{product}" for col in columns if col not in ["ts", "ts_local"]
+            }
+            df = df.rename(rename_map)
+            dfs.append(df)
+        merged_df = pl.concat([df.select('ts') for df in dfs], how='vertical').unique('ts').sort('ts')
+        for i, df in enumerate(dfs):
+            merged_df = merged_df.join_asof(df, on='ts')
+        df = merged_df.drop_nulls().sort('ts')
+
+        df = df.ds.add_datetime()
+        dtimes = [datetime.strptime(t, "%y%m%d.%H%M%S") for t in times]
+        try:
+            td = str_to_timedelta(freq)
+        except ValueError:
+            raise ValueError(f"Invalid frequency: {freq}")
+        
+        min_dt = round_up_to_nearest(df["dts"][0], td)
+        max_dt = dtimes[1]
+
+        # Make sure that every timestamp is present in the dataframe
+        rdf = pl.DataFrame(
+            { "dts": pl.datetime_range(min_dt, max_dt, freq, time_unit="ns", eager=True) }
+        )
+        rdf = rdf.join_asof(df, on="dts", strategy="backward")
+
+        if col == "mid":
+            rdf = rdf.feature.add_mid(cols=["asks[0].price", "bids[0].price"])
+            if len(products) > 1:
+                rdf = rdf.select([pl.col("dts").alias("ts")] + [pl.col(f"mid_{product}") for product in products])
+            else:
+                rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("mid")])
+        elif col == "vwap":
+            rdf = rdf.feature.add_vwap(cols=["asks[0].price", "bids[0].price", "asks[0].amount", "bids[0].amount"])
+            if len(products) > 1:
+                rdf= rdf.select([pl.col("dts").alias("ts")] + [pl.col(f"vwap_{product}") for product in products]) 
+            else:
+                rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("vwap")])
+        return rdf
 
     def download(self, product: str, day: str, type: str):
         """

@@ -15,6 +15,7 @@ class DatetimeMethods:
         """
         Add a datetime column to the DataFrame.
         """
+        
         return self._df.with_columns([pl.from_epoch(ts_col, time_unit='ns').alias('dts')])
     
     def aggregate(self, cols: list[str]) -> pl.DataFrame:
