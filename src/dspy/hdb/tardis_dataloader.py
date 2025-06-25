@@ -18,11 +18,11 @@ import nest_asyncio
 from dspy.hdb.base import DataLoader
 from dspy.hdb.registry import register_dataset
 from dspy.utils import nanoseconds, str_to_timedelta, round_up_to_nearest
+from dspy.hdb.config import TARDIS_API_KEY
 
-logger = logging.getLogger(__name__)    
+logger = logging.getLogger(__name__)
 
 TARDIS_DATA_PATH = Path(__file__).parent.parent.parent.parent / "data" / "tardis"
-TARDIS_API_KEY = ""
 
 def get_days(start_date: datetime, end_date: datetime) -> list[str]:
     """
@@ -123,60 +123,89 @@ class TardisData(DataLoader):
 
     def load_bar(self, products: list[str] | str, times: list[str], col: str = "mid", freq: str = "1s", lazy=False) -> pl.DataFrame:
         """
-        Load data for a given set of products and times.
+        Load data for a given set of products and times, sampled at fixed frequency.
+        
+        Args:
+            products: Single product string or list of product strings
+            times: List of two strings in format '%y%m%d.%H%M%S' 
+            col: Column type to compute ("mid" or "vwap")
+            freq: Frequency string (e.g., "1s", "5m", "1h")
+            lazy: Whether to use lazy loading
+            
+        Returns:
+            DataFrame with timestamp and computed columns for each product
         """
+        # Convert single product to list for uniform processing
         if isinstance(products, str):
-            # load book data for a single product
-            return self.load_book(products, times, depth=1, lazy=lazy, type="book_snapshot_25")
+            products = [products]
 
-        # Load book data for each product and combine into one dataframe
+        # Load book data for each product
         dfs = []
-
         for product in products:
             df = self.load_book(product, times, depth=1, lazy=lazy, type="book_snapshot_25").sort('ts')
             if lazy:
                 columns = df.collect_schema().names()
             else:
                 columns = df.columns
+            # Rename columns to include product name (except timestamps)
             rename_map = {
                 col: f"{col}_{product}" for col in columns if col not in ["ts", "ts_local"]
             }
             df = df.rename(rename_map)
             dfs.append(df)
-        merged_df = pl.concat([df.select('ts') for df in dfs], how='vertical').unique('ts').sort('ts')
-        for i, df in enumerate(dfs):
-            merged_df = merged_df.join_asof(df, on='ts')
-        df = merged_df.drop_nulls().sort('ts')
 
-        df = df.ds.add_datetime()
+        # Merge all products on timestamp using asof joins
+        merged_df = dfs[0]
+        for df in dfs[1:]:
+            merged_df = merged_df.join_asof(df, on='ts')
+
+        # Add datetime column for resampling
+        merged_df = merged_df.ds.add_datetime()
+        
+        # Parse time range for resampling
         dtimes = [datetime.strptime(t, "%y%m%d.%H%M%S") for t in times]
         try:
             td = str_to_timedelta(freq)
         except ValueError:
             raise ValueError(f"Invalid frequency: {freq}")
         
-        min_dt = round_up_to_nearest(df["dts"][0], td)
+        # Create regular time grid
+        min_dt = round_up_to_nearest(merged_df["dts"][0], td)
         max_dt = dtimes[1]
-
-        # Make sure that every timestamp is present in the dataframe
-        rdf = pl.DataFrame(
-            { "dts": pl.datetime_range(min_dt, max_dt, freq, time_unit="ns", eager=True) }
-        )
-        rdf = rdf.join_asof(df, on="dts", strategy="backward")
-
-        if col == "mid":
-            rdf = rdf.feature.add_mid(cols=["asks[0].price", "bids[0].price"])
-            if len(products) > 1:
-                rdf = rdf.select([pl.col("dts").alias("ts")] + [pl.col(f"mid_{product}") for product in products])
-            else:
-                rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("mid")])
-        elif col == "vwap":
-            rdf = rdf.feature.add_vwap(cols=["asks[0].price", "bids[0].price", "asks[0].amount", "bids[0].amount"])
-            if len(products) > 1:
-                rdf= rdf.select([pl.col("dts").alias("ts")] + [pl.col(f"vwap_{product}") for product in products]) 
-            else:
-                rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("vwap")])
-        return rdf
+        
+        time_grid = pl.DataFrame({
+            "dts": pl.datetime_range(min_dt, max_dt, freq, time_unit="ns", eager=True)
+        })
+        
+        # Sample data at fixed frequency using backward fill
+        sampled_df = time_grid.join_asof(merged_df, on="dts", strategy="backward")
+        
+        # Compute derived columns for each product
+        select_cols = [pl.col("dts").alias("ts")]
+        
+        for product in products:
+            if col == "mid":
+                # Compute mid price: (bid + ask) / 2
+                mid_col = (
+                    (pl.col(f"bids[0].price_{product}") + pl.col(f"asks[0].price_{product}")) / 2
+                ).alias(f"mid_{product}")
+                select_cols.append(mid_col)
+                
+            elif col == "vwap":
+                # Compute VWAP: (bid_price * bid_amount + ask_price * ask_amount) / (bid_amount + ask_amount)
+                vwap_col = (
+                    (pl.col(f"bids[0].price_{product}") * pl.col(f"bids[0].amount_{product}") + 
+                     pl.col(f"asks[0].price_{product}") * pl.col(f"asks[0].amount_{product}")) /
+                    (pl.col(f"bids[0].amount_{product}") + pl.col(f"asks[0].amount_{product}"))
+                ).alias(f"vwap_{product}")
+                select_cols.append(vwap_col)
+        
+        result_df = sampled_df.select(select_cols)
+        
+        # Drop any rows with nulls (where no data was available)
+        result_df = result_df.drop_nulls()
+        
+        return result_df
 
     def download(self, product: str, day: str, type: str):
         """

@@ -25,6 +25,23 @@ uv pip install -e /path/to/trpy-data
 
 Some further hacking may be necessary.
 
+## API Keys Configuration
+
+For accessing live data and historical data sources, you'll need to configure API keys:
+
+```bash
+# Copy the environment template
+cp .env.example .env
+
+# Edit .env with your actual API keys
+```
+
+Required API keys in `.env`:
+- `TARDIS_API_KEY`: For historical market data from [Tardis](https://tardis.dev/)
+- `BYBIT_API_KEY` & `BYBIT_API_SECRET`: For live trading via [Bybit API](https://www.bybit.com/app/user/api-management)
+
+The `.env` file is automatically loaded when importing `dspy`, so your API keys will be available throughout the application.
+
 ## Usage
 
 Data is available in two forms: limit order book (LOB) and fixed frequency data (trade data will be included too). The available depth depends on the ultimate data source being used. The timestamps are given in nanosecond resolution as Unix timestamps. A simple dataloader and some helper function to convert Python datetime objects or strings of the form '240802.145010' into timestamps are provided.
@@ -43,7 +60,10 @@ df = dl.load_book(product='BTCUSDT', times=['250120.000100', '250120.215000'], d
 df = df.ds.add_datetime('ts').feature.add_mid(products=['BTCUSDT'])
 ```
 
-Note: the data is expected as parquet files in the data/tardis/processed directory. If the files are not present, the loader will attempt to fetch them from tardis and preprocess them. This, however, requires a Tardis subscription and a corresponding API key. The API key can be set in the environment variable TARDIS_API_KEY. As this is not provided by default, the already preprocessed parquet files for BTCUSDT from Binance from April to June 2025 are provided on [huggingface](https://huggingface.co/datasets/tripudium/tardisdata/tree/main). This data should be downloaded and placed in the data/tardis/processed directory.
+**Data Sources:**
+- **Local data**: Expected as parquet files in `data/tardis/processed/` directory
+- **Tardis API**: Automatically fetches and preprocesses data (requires `TARDIS_API_KEY` in `.env`)
+- **HuggingFace**: Preprocessed BTCUSDT data from April-June 2025 available at [tripudium/tardisdata](https://huggingface.co/datasets/tripudium/tardisdata/tree/main)
 
 See the [example notebook](examples/dataloading.ipynb) for more.
 

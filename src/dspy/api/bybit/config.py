@@ -1,3 +1,4 @@
+import os
 from collections import namedtuple
 
 Config = namedtuple('Config', (
@@ -12,9 +13,9 @@ Config = namedtuple('Config', (
     'tp_dist', 
     'stop_dist'))
 
-# Fixed parameters
-API_KEY = "StMMBpVlRHbiZF5tki"
-API_SECRET = "DOe9UXJgeWLpTKWBibHBpjIDW0UpSON9FuUp"
+# API credentials - loaded from environment variables
+API_KEY = os.getenv('BYBIT_API_KEY', 'your-bybit-api-key-here')
+API_SECRET = os.getenv('BYBIT_API_SECRET', 'your-bybit-api-secret-here')
 SYMBOL = 'BTCUSDT'
 COIN = 'USDT'
 
