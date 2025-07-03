@@ -6,7 +6,6 @@ from pathlib import Path
 import logging
 from datetime import datetime
 import polars as pl
-from typing import Generator
 
 # Local imports
 from dspy.utils import str_to_timedelta, round_up_to_nearest
@@ -106,11 +105,29 @@ class DataLoader:
         df = pl.concat(dfs).sort('ts')
         return df
 
-    def load_book(self, _product: str, _times: list[str], _depth: int = 10, _lazy: bool = False) -> pl.DataFrame:
+    def load_book(self, products: list[str] | str, times: list[str], _depth: int = 10, lazy=False) -> pl.DataFrame:
         """
         Load book data for a given product and times.
         """
-        raise NotImplementedError
+        if isinstance(products, str):
+            return self._load_data(products, times, "book", lazy)
+        
+        dfs = []
+        for product in products:
+            df = self._load_data(product, times, "book", lazy).sort('ts')
+            if lazy:
+                columns = df.collect_schema().names()
+            else:
+                columns = df.columns
+            rename_map = {
+                col: f"{col}_{product}" for col in columns if col != "ts"
+            }
+            df = df.rename(rename_map)
+            dfs.append(df)
+        merged_df = pl.concat([df.select('ts') for df in dfs], how='vertical').unique('ts').sort('ts')
+        for i, df in enumerate(dfs):
+            merged_df = merged_df.join_asof(df, on='ts')
+        return merged_df.drop_nulls().sort('ts')
     
     def load(self, products: list[str], times: list[str], col: str = "mid", freq: str = "1s", lazy=False) -> pl.DataFrame:
         """
@@ -151,33 +168,4 @@ class DataLoader:
         raise NotImplementedError
 
     def process(self, _product: str, _month: str, _type: str):
-        raise NotImplementedError
-    
-    def stream_book(self, _product: str, _times: list[str], _depth: int = 10, _batch_size: int = 10000) -> Generator[pl.DataFrame, None, None]:
-        """
-        Stream book data for a given product and times in batches.
-        
-        Args:
-            _product: Product symbol
-            _times: List of two strings in format '%y%m%d.%H%M%S'
-            _depth: Order book depth
-            _batch_size: Number of rows per batch
-            
-        Yields:
-            Polars DataFrame batches
-        """
-        raise NotImplementedError
-    
-    def stream_trades(self, _product: str, _times: list[str], _batch_size: int = 10000) -> Generator[pl.DataFrame, None, None]:
-        """
-        Stream trade data for a given product and times in batches.
-        
-        Args:
-            _product: Product symbol
-            _times: List of two strings in format '%y%m%d.%H%M%S'
-            _batch_size: Number of rows per batch
-            
-        Yields:
-            Polars DataFrame batches
-        """
         raise NotImplementedError

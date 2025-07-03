@@ -12,6 +12,8 @@ from tardis_dev import datasets
 import gzip
 import shutil
 import nest_asyncio
+from typing import Generator
+import pyarrow.parquet as pq
 
 
 # Local imports
@@ -245,5 +247,131 @@ class TardisData(DataLoader):
         os.remove(filename.replace('.gz', ''))
         return df
 
+    def stream_book(self, product: str, times: list[str], depth: int = 10, batch_size: int = 10000) -> Generator[pl.DataFrame, None, None]:
+        """
+        Stream book data for a given product and times in batches.
         
+        Args:
+            product: Product symbol
+            times: List of two strings in format '%y%m%d.%H%M%S'
+            depth: Order book depth
+            batch_size: Number of rows per batch
+            
+        Yields:
+            Polars DataFrame batches
+        """
+        if len(times) != 2:
+            raise ValueError("Times must be a list of two strings in the format '%y%m%d.%H%M%S'")
         
+        try:
+            dtimes = [datetime.strptime(t, "%y%m%d.%H%M%S") for t in times]
+        except ValueError:
+            raise ValueError("Times must be in the format '%y%m%d.%H%M%S'")
+        
+        days = get_days(dtimes[0], dtimes[1])
+        start_ns = nanoseconds(times[0])
+        end_ns = nanoseconds(times[1])
+        
+        # Prepare column selection for the specified depth
+        price_columns = []
+        for i in range(depth):
+            price_columns.extend([f"asks[{i}].price", f"asks[{i}].amount", f"bids[{i}].price", f"bids[{i}].amount"])
+        select_columns = ['ts', 'ts_local'] + price_columns
+        
+        for day in days:
+            filename = f"{str(self.processed_path)}/{self.market}_book_snapshot_25_{day}_{product}.parquet"
+            
+            # Download and process if file doesn't exist
+            if not Path(filename).exists():
+                logger.info(f"File {filename} not found, downloading...")
+                self.download(product, day, "book_snapshot_25")
+                logger.info("File downloaded, processing...")
+                df = self.process(product, day, "book_snapshot_25")
+                if df is None:
+                    logger.warning(f"Product {product} with type book_snapshot_25 and day {day} is not available")
+                    continue
+            
+            # Stream the parquet file in batches
+            try:
+                parquet_file = pq.ParquetFile(filename)
+                
+                for batch in parquet_file.iter_batches(batch_size=batch_size):
+                    # Convert to Polars DataFrame
+                    batch_df = pl.from_arrow(batch)
+                    
+                    # Filter by time range
+                    batch_df = batch_df.filter(pl.col('ts').is_between(start_ns, end_ns))
+                    
+                    if batch_df.height == 0:
+                        continue
+                    
+                    # Select required columns and depth
+                    batch_df = batch_df.select(select_columns)
+                    
+                    # Remove duplicate rows based on price columns
+                    batch_df = batch_df.unique(subset=price_columns, maintain_order=True)
+                    
+                    if batch_df.height > 0:
+                        yield batch_df
+                        
+            except Exception as e:
+                logger.error(f"Error streaming file {filename}: {e}")
+                continue
+
+    def stream_trades(self, product: str, times: list[str], batch_size: int = 10000) -> Generator[pl.DataFrame, None, None]:
+        """
+        Stream trade data for a given product and times in batches.
+        
+        Args:
+            product: Product symbol
+            times: List of two strings in format '%y%m%d.%H%M%S'
+            batch_size: Number of rows per batch
+            
+        Yields:
+            Polars DataFrame batches
+        """
+        if len(times) != 2:
+            raise ValueError("Times must be a list of two strings in the format '%y%m%d.%H%M%S'")
+        
+        try:
+            dtimes = [datetime.strptime(t, "%y%m%d.%H%M%S") for t in times]
+        except ValueError:
+            raise ValueError("Times must be in the format '%y%m%d.%H%M%S'")
+        
+        days = get_days(dtimes[0], dtimes[1])
+        start_ns = nanoseconds(times[0])
+        end_ns = nanoseconds(times[1])
+        
+        for day in days:
+            filename = f"{str(self.processed_path)}/{self.market}_trades_{day}_{product}.parquet"
+            
+            # Download and process if file doesn't exist
+            if not Path(filename).exists():
+                logger.info(f"File {filename} not found, downloading...")
+                self.download(product, day, "trades")
+                logger.info("File downloaded, processing...")
+                df = self.process(product, day, "trades")
+                if df is None:
+                    logger.warning(f"Product {product} with type trades and day {day} is not available")
+                    continue
+            
+            # Stream the parquet file in batches
+            try:
+                parquet_file = pq.ParquetFile(filename)
+                
+                for batch in parquet_file.iter_batches(batch_size=batch_size):
+                    # Convert to Polars DataFrame
+                    batch_df = pl.from_arrow(batch)
+                    
+                    # Filter by time range
+                    batch_df = batch_df.filter(pl.col('ts').is_between(start_ns, end_ns))
+                    
+                    # Add product column
+                    batch_df = batch_df.with_columns(pl.lit(product).alias('product'))
+                    
+                    if batch_df.height > 0:
+                        yield batch_df
+                        
+            except Exception as e:
+                logger.error(f"Error streaming file {filename}: {e}")
+                continue
