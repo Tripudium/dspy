@@ -3,7 +3,7 @@ import polars as pl
 import numpy as np
 from datetime import datetime, timedelta
 
-from dspy.utils import str_to_timedelta, timedelta_to_nanoseconds
+from dspy.utils.time import str_to_timedelta, timedelta_to_nanoseconds
 
 def add_sig_pnl(
         df: pl.DataFrame,

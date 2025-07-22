@@ -8,7 +8,7 @@ from datetime import datetime
 import polars as pl
 
 # Local imports
-from dspy.utils import str_to_timedelta, round_up_to_nearest
+from dspy.utils.time import str_to_timedelta, round_up_to_nearest
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

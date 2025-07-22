@@ -9,7 +9,7 @@ import polars as pl
 from typing import Generator
 
 # Local imports
-from dspy.utils import str_to_timedelta, round_up_to_nearest
+from dspy.utils.time import str_to_timedelta, round_up_to_nearest
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
