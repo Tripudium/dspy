@@ -1,16 +1,18 @@
 """
 A simple interface for interacting with exchanges.
 """
+
 import time
 import logging
 
-logger = logging.getLogger('DS.exchanges')
+logger = logging.getLogger("DS.exchanges")
+
 
 class Exchange:
     """
     Simple interface for interacting with exchanges.
     """
-    
+
     def __init__(self):
         """
         Set up connector.
@@ -26,7 +28,7 @@ class Exchange:
             symbol -- the product symbol
         """
         raise NotImplementedError("get_mid not implemented")
-    
+
     def get_ask(self, _symbol: str, _depth: int = 1) -> list[float]:
         """
         Return best ask price and volume.
@@ -35,7 +37,7 @@ class Exchange:
             symbol -- the product symbol
         """
         raise NotImplementedError("get_ask not implemented")
-    
+
     def get_bid(self, _symbol: str, _depth: int = 1) -> list[float]:
         """
         Return best bid price and volume.
@@ -44,7 +46,7 @@ class Exchange:
             symbol -- the product symbol
         """
         raise NotImplementedError("get_bid not implemented")
-    
+
     def get_orderbook(self, _symbol: str, _depth: int = 25) -> list[float]:
         """
         Return orderbook for product.
@@ -54,7 +56,7 @@ class Exchange:
             depth -- the depth of the orderbook
         """
         raise NotImplementedError("get_orderbook not implemented")
-    
+
     def get_trades(self, _symbol: str, _limit: int = 100) -> list[float]:
         """
         Return trades for product.
@@ -64,20 +66,20 @@ class Exchange:
             limit -- the number of trades to return
         """
         raise NotImplementedError("get_trades not implemented")
-    
+
     def get_latency(self) -> float:
         """
         Return latency of exchange.
         """
         raise NotImplementedError("get_latency not implemented")
-    
+
     # Account info
     def get_wallet_balance(self) -> float:
         """
         Return wallet balance.
         """
         raise NotImplementedError("get_wallet_balance not implemented")
-    
+
     def get_fees(self, _symbol: str) -> list:
         """
         Return taker and maker fees for product.
@@ -96,9 +98,15 @@ class Exchange:
             symbol -- the product symbol
         """
         raise NotImplementedError("get_position not implemented")
-    
+
     # Trading
-    def place_order(self, _symbol: str, _qty: float, _price: float | None = None, _type: str = 'Market') -> dict:
+    def place_order(
+        self,
+        _symbol: str,
+        _qty: float,
+        _price: float | None = None,
+        _type: str = "Market",
+    ) -> dict:
         """
         Place limit order at given price or market order.
 
@@ -110,7 +118,9 @@ class Exchange:
         """
         raise NotImplementedError("place_order not implemented")
 
-    def replace_order(self, _symbol: str, _order_id: float, _qty: float, _price: float) -> dict:
+    def replace_order(
+        self, _symbol: str, _order_id: float, _qty: float, _price: float
+    ) -> dict:
         """
         Cancel specified limit order and place a new one.
 
@@ -121,7 +131,7 @@ class Exchange:
             price -- the price to trade at
         """
         raise NotImplementedError("replace_order not implemented")
-    
+
     def place_batch_order(self, _symbol: str, _qtys: list, _prices: list) -> dict:
         """
         Place a collection of orders for a given product.
@@ -131,7 +141,7 @@ class Exchange:
             qtys -- the quantities to trade
         """
         raise NotImplementedError("place_batch_order not implemented")
-    
+
     def cancel_order(self, symbol: str, order_id: str):
         """
         Cancel specific limit order based on order id.
@@ -141,11 +151,11 @@ class Exchange:
             order_id -- the order id to cancel
         """
         raise NotImplementedError("cancel_order not implemented")
-    
+
     def cancel_batch_order(self, _symbol: str, _order_ids: list) -> dict:
         """
         Cancel a list of orders for one product based on order ids.
-        
+
         Arguments:
             symbol -- the product symbol
             order_ids -- the list of order ids to cancel
@@ -179,20 +189,34 @@ class Exchange:
             stop_price -- the stop loss price
         """
         raise NotImplementedError("set_trading_stop not implemented")
-    
-    def get_trade_history(self, _symbol: str, _limit: int = 50, _start_time: int = None, _end_time: int = None) -> list[dict]:
+
+    def get_trade_history(
+        self,
+        _symbol: str,
+        _limit: int = 50,
+        _start_time: int = None,
+        _end_time: int = None,
+    ) -> list[dict]:
         """
         Get trade history for a product.
         """
         raise NotImplementedError("get_trade_history not implemented")
-    
-    def get_filled_orders(self, _symbol: str, _limit: int = 50, _order_filter: str = "Filled") -> list[dict]:
+
+    def get_filled_orders(
+        self, _symbol: str, _limit: int = 50, _order_filter: str = "Filled"
+    ) -> list[dict]:
         """
         Get filled orders for a product.
         """
         raise NotImplementedError("get_filled_orders not implemented")
-    
-    def get_pnl(self, _symbol: str, _limit: int = 50, _start_time: int = None, _end_time: int = None) -> list[dict]:    
+
+    def get_pnl(
+        self,
+        _symbol: str,
+        _limit: int = 50,
+        _start_time: int = None,
+        _end_time: int = None,
+    ) -> list[dict]:
         """
         Get PnL for a product.
         """

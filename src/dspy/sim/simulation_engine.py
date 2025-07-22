@@ -8,7 +8,6 @@ import uuid
 import numpy as np
 from dataclasses import dataclass
 import random
-import polars as pl
 
 from dspy.api.base import Exchange
 from dspy.api.api_registry import register_api
@@ -62,7 +61,9 @@ class SimulationOrder:
         self.price = price
         self.order_type = order_type
         self.timestamp = timestamp
-        self.submission_time = submission_time  # When order was submitted (with latency)
+        self.submission_time = (
+            submission_time  # When order was submitted (with latency)
+        )
         self.execution_time = execution_time  # When order should be processed
         self.status = "New"
         self.filled_qty = 0.0
@@ -171,7 +172,7 @@ class SimulationEngine(Exchange):
         # Data storage for efficient jumping
         self.data_frames = {}  # Store full DataFrames for each symbol
         self.current_indices = {}  # Current position in each DataFrame
-        
+
         # Initialize data
         self._load_all_data()
 
@@ -181,14 +182,14 @@ class SimulationEngine(Exchange):
     def _load_all_data(self):
         """Load all data for efficient jumping."""
         logger.info("Loading all data for simulation...")
-        
+
         for symbol in self.symbols:
             # Load full dataset for this symbol
             df = self.data_source.load_book(symbol, self.times, depth=25)
-            
+
             if df is not None and len(df) > 0:
                 # Sort by timestamp to ensure proper ordering
-                df = df.sort('ts')
+                df = df.sort("ts")
                 self.data_frames[symbol] = df
                 self.current_indices[symbol] = 0
                 logger.info(f"Loaded {len(df)} data points for {symbol}")
@@ -222,17 +223,17 @@ class SimulationEngine(Exchange):
         """Get next data point for a symbol."""
         if symbol not in self.data_frames or self.data_frames[symbol] is None:
             return None
-        
+
         df = self.data_frames[symbol]
         current_idx = self.current_indices[symbol]
-        
+
         if current_idx >= len(df):
             return None
-        
+
         # Get current row as dict
         row = df.row(current_idx, named=True)
         self.current_indices[symbol] += 1
-        
+
         return row
 
     def next(self, target_time: Optional[int] = None) -> bool:
@@ -248,7 +249,7 @@ class SimulationEngine(Exchange):
         if target_time is not None:
             # Jump to specific time using efficient data filtering
             return self._jump_to_time(target_time)
-        
+
         # Regular single-step advancement
         min_time = None
         next_data = {}
@@ -272,42 +273,42 @@ class SimulationEngine(Exchange):
     def _jump_to_time(self, target_time: int) -> bool:
         """
         Jump to a specific time using efficient Polars operations.
-        
+
         Args:
             target_time: Target time in nanoseconds
-            
+
         Returns:
             True if successful, False if no more data
         """
         # For each symbol, advance to the target time
         advanced_any = False
-        
+
         for symbol in self.symbols:
             if symbol not in self.data_frames or self.data_frames[symbol] is None:
                 continue
-                
+
             df = self.data_frames[symbol]
             current_idx = self.current_indices[symbol]
-            
+
             if current_idx >= len(df):
                 continue
-            
+
             # Use Polars to efficiently find the next data point at or after target_time
             remaining_df = df.slice(current_idx)
-            
+
             # Find the first row with timestamp >= target_time
-            mask = remaining_df['ts'] >= target_time
+            mask = remaining_df["ts"] >= target_time
             if mask.any():
                 # Get the index of the first matching row
                 match_idx = mask.arg_max()  # arg_max gives first True index
-                
+
                 # Update the current index
                 self.current_indices[symbol] = current_idx + match_idx
                 advanced_any = True
-        
+
         if not advanced_any:
             return False
-        
+
         # Now get the next data point normally
         return self.next()
 
@@ -712,33 +713,33 @@ class SimulationEngine(Exchange):
         # Convert timeout from seconds to nanoseconds
         wait_ns = int(timeout * 1_000_000_000)
         target_time = self.current_time + wait_ns
-        
+
         # Jump to target time using efficient data operations
         self.next(target_time)
 
     def wait_seconds(self, seconds: float) -> bool:
         """
         Wait for specified number of seconds in simulation time by jumping forward.
-        
+
         Args:
             seconds: Number of seconds to wait
-            
+
         Returns:
             True if successful, False if simulation ended
         """
         # Convert to nanoseconds and jump forward
         wait_ns = int(seconds * 1_000_000_000)
         target_time = self.current_time + wait_ns
-        
+
         return self.next(target_time)
 
     def wait_minutes(self, minutes: float) -> bool:
         """
         Wait for specified number of minutes in simulation time by jumping forward.
-        
+
         Args:
             minutes: Number of minutes to wait
-            
+
         Returns:
             True if successful, False if simulation ended
         """

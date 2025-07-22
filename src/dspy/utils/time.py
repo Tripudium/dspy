@@ -11,6 +11,7 @@ import re
 from datetime import datetime, timedelta
 import pytz
 
+
 def nanoseconds(input: Union[str, datetime]) -> int:
     """
     Convert datetime or string input to return nanosecond UNIX timestamp (int).
@@ -18,10 +19,10 @@ def nanoseconds(input: Union[str, datetime]) -> int:
     The input can by one of the following:
         - YYMMDD.HHMM
         - dt.datetime (with or without timezone)
-        
+
         Example:
             >>> nanoseconds(dt.datetime(2018, 3, 20, 18, 30, tzinfo=pytz.timezone('America/Chicago')))
-        1521588600000000000 
+        1521588600000000000
     """
     assert isinstance(input, datetime) or isinstance(input, str)
     if isinstance(input, str):
@@ -36,22 +37,25 @@ def nanoseconds(input: Union[str, datetime]) -> int:
     timestamp = 1000 * (calendar.timegm(time_tuple) * 1000 * 1000 + input.microsecond)
     return timestamp
 
+
 def timedelta_to_nanoseconds(td: timedelta) -> int:
     """
     Convert a timedelta to a nanoseconds.
     """
     return int(td.total_seconds() * 1_000_000_000)
 
+
 def round_up_to_nearest(dt: datetime, td: timedelta) -> datetime:
     """
     Round a datetime up to the nearest timedelta.
     """
-    dt_seconds = dt.timestamp() 
+    dt_seconds = dt.timestamp()
     td_seconds = td.total_seconds()
     remainder = dt_seconds % td_seconds
     if remainder > 0:
         return dt + timedelta(seconds=(td_seconds - remainder))
-    return dt 
+    return dt
+
 
 def str_to_timedelta(s: str) -> timedelta:
     """
@@ -59,31 +63,34 @@ def str_to_timedelta(s: str) -> timedelta:
     """
     match = re.fullmatch(r"(\d+)(ns|us|ms|s|m|h)", s)
     if not match:
-        raise ValueError(f"Input string '{s}' is not in the expected format, e.g., '30s', '1m', or '2h'.")
+        raise ValueError(
+            f"Input string '{s}' is not in the expected format, e.g., '30s', '1m', or '2h'."
+        )
     number, unit = match.groups()
     number = int(number)
-    
-    if unit == 'ms':
+
+    if unit == "ms":
         return timedelta(milliseconds=number)
-    elif unit == 'us':
+    elif unit == "us":
         return timedelta(microseconds=number)
-    elif unit == 'ns':  # nanoseconds
+    elif unit == "ns":  # nanoseconds
         return timedelta(nanoseconds=number)
-    elif unit == 's':  # seconds
+    elif unit == "s":  # seconds
         return timedelta(seconds=number)
-    elif unit == 'm':  # minutes
+    elif unit == "m":  # minutes
         return timedelta(minutes=number)
-    elif unit == 'h':  # hours
+    elif unit == "h":  # hours
         return timedelta(hours=number)
     else:
         raise ValueError(f"Unrecognized unit '{unit}' in input string '{s}'.")
-    
+
+
 def timedelta_to_str(td: timedelta) -> str:
     """
     Convert a timedelta to a string.
     """
     total_seconds = td.total_seconds()
-    
+
     # Check hours first
     if total_seconds >= 3600 and total_seconds % 3600 == 0:
         return f"{int(total_seconds // 3600)}h"

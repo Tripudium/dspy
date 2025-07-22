@@ -39,7 +39,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv]
-dev-dependencies = ["pytest"]
+dev-dependencies = [
+    "pytest",
+    "ruff>=0.9.9",
+]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -47,3 +50,9 @@ addopts = "--maxfail=1 --disable-warnings -q"
 testpaths = [
     "tests",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"] # Enable standard, pyflakes & import-sorting rules

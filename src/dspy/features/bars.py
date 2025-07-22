@@ -1,3 +1,3 @@
 """
-Module for generating features from bars.   
+Module for generating features from bars.
 """
