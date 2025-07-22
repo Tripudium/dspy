@@ -179,6 +179,24 @@ class Exchange:
             stop_price -- the stop loss price
         """
         raise NotImplementedError("set_trading_stop not implemented")
+    
+    def get_trade_history(self, _symbol: str, _limit: int = 50, _start_time: int = None, _end_time: int = None) -> list[dict]:
+        """
+        Get trade history for a product.
+        """
+        raise NotImplementedError("get_trade_history not implemented")
+    
+    def get_filled_orders(self, _symbol: str, _limit: int = 50, _order_filter: str = "Filled") -> list[dict]:
+        """
+        Get filled orders for a product.
+        """
+        raise NotImplementedError("get_filled_orders not implemented")
+    
+    def get_pnl(self, _symbol: str, _limit: int = 50, _start_time: int = None, _end_time: int = None) -> list[dict]:    
+        """
+        Get PnL for a product.
+        """
+        raise NotImplementedError("get_pnl not implemented")
 
     # Various helper and dummy methods
     def wait(self, timeout: float):
