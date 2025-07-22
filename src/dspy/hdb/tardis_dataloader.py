@@ -99,6 +99,17 @@ def generate_schema(type: str = "book_snapshot_25") -> dict[str, pl.DataType]:
             "local_timestamp": pl.Int64,
             **{col: pl.Float64 for col in columns[4:]},
         }
+    elif type == "trades":
+        schema = {
+            "exchange": pl.String,
+            "symbol": pl.String,
+            "timestamp": pl.Int64,
+            "local_timestamp": pl.Int64,
+            "id": pl.Int64,
+            "side": pl.String,
+            "price": pl.Float64,
+            "amount": pl.Float64
+        }
     else:
         raise ValueError(f"Unknown type: {type}")
     return schema
@@ -114,8 +125,13 @@ class TardisData(DataLoader):
         self, root: str | Path = TARDIS_DATA_PATH, market: str = "binance-futures"
     ):
         logger.info("Initializing TardisDataLoader with path %s", root)
-        super().__init__(root)
         self.market = market
+        if market not in ["binance-futures", "binance-spot", "bybit-futures"]:
+            raise ValueError(f"Invalid market: {market}")
+        if not isinstance(root, Path):
+            root = Path(root)
+        root = root / market
+        super().__init__(root)
 
     def _load_data(
         self, product: str, times: list[str], type: str = "book_snapshot_25", lazy=False
@@ -191,8 +207,32 @@ class TardisData(DataLoader):
         df = df.select(columns)
         df = df.unique(subset=price_columns, maintain_order=True)
         return df
+    
+    def load_trades(
+        self,
+        products: list[str] | str,
+        times: list[str],
+        lazy=False,
+    ) -> pl.DataFrame:
+        """
+        Load trade data for a given product and times.
+        """
+        if isinstance(products, str):
+            products = [products]
+        dfs = []
+        for product in products:
+            df = self._load_data(product, times, "trades", lazy)
+            df = df.with_columns(
+                pl.col("side").map_elements(
+                    lambda x: 1 if x == "buy" else -1,
+                    return_dtype=pl.Int32,
+                )
+            ).rename({"amount": "vol"})
+            dfs.append(df)
+        df = pl.concat(dfs).sort(["ts", "id"])
+        return df
 
-    def load_bar(
+    def load_sync(
         self,
         products: list[str] | str,
         times: list[str],
@@ -372,7 +412,6 @@ class TardisData(DataLoader):
         start_ns = nanoseconds(times[0])
         end_ns = nanoseconds(times[1])
 
-        # Prepare column selection for the specified depth
         price_columns = []
         for i in range(depth):
             price_columns.extend(
@@ -405,10 +444,8 @@ class TardisData(DataLoader):
                 parquet_file = pq.ParquetFile(filename)
 
                 for batch in parquet_file.iter_batches(batch_size=batch_size):
-                    # Convert to Polars DataFrame
                     batch_df = pl.from_arrow(batch)
 
-                    # Filter by time range
                     batch_df = batch_df.filter(
                         pl.col("ts").is_between(start_ns, end_ns)
                     )
@@ -416,10 +453,8 @@ class TardisData(DataLoader):
                     if batch_df.height == 0:
                         continue
 
-                    # Select required columns and depth
                     batch_df = batch_df.select(select_columns)
 
-                    # Remove duplicate rows based on price columns
                     batch_df = batch_df.unique(
                         subset=price_columns, maintain_order=True
                     )

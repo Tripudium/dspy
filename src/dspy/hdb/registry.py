@@ -40,12 +40,14 @@ See Also:
     dspy.hdb.tardis_dataloader: Example of registered data loader implementation
 """
 
-from typing import Type
+from typing import Callable, Type
+
+from dspy.hdb.base import DataLoader
 
 DATASET_REGISTRY: dict[str, Type] = {}
 
 
-def register_dataset(name):
+def register_dataset(name: str) -> Callable[[Type], Type]:
     """
     Decorator to register a dataset class under a specified name.
 
@@ -63,9 +65,10 @@ def register_dataset(name):
     return decorator
 
 
-def get_dataset(name, **kwargs):
+def get_dataset(name: str, **kwargs) -> DataLoader:
     """
     Factory function to instantiate a dataset based on its registered name.
+    This is the main entry point for users to access different data sources.
 
     Parameters:
         name (str): The registered name of the dataset (e.g., "as-733").

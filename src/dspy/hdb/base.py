@@ -36,14 +36,12 @@ See Also:
 """
 
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Generator
 
 import polars as pl
 
 # Local imports
-from dspy.utils.time import round_up_to_nearest, str_to_timedelta
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -137,53 +135,18 @@ class DataLoader:
         """
         raise NotImplementedError
 
-    def load(
+    def load_sync(
         self,
-        products: list[str],
-        times: list[str],
-        col: str = "mid",
-        freq: str = "1s",
-        lazy=False,
+        _products: list[str] | str,
+        _times: list[str],
+        _col: str = "mid",
+        _freq: str = "1s",
+        _lazy=False,
     ) -> pl.DataFrame:
         """
-        Load data for a given product and times.
+        Load data for a given set of products and times, sampled at fixed frequency.
         """
-        df = self.load_book(products, times, lazy=lazy)
-        df = df.ds.add_datetime()
-        dtimes = [datetime.strptime(t, "%y%m%d.%H%M%S") for t in times]
-        try:
-            td = str_to_timedelta(freq)
-        except ValueError:
-            raise ValueError(f"Invalid frequency: {freq}")
-
-        min_dt = round_up_to_nearest(df["dts"][0], td)
-        max_dt = dtimes[1]
-
-        # Make sure that every timestamp is present in the dataframe
-        rdf = pl.DataFrame(
-            {"dts": pl.datetime_range(min_dt, max_dt, freq, time_unit="ns", eager=True)}
-        )
-        rdf = rdf.join_asof(df, on="dts", strategy="backward")
-
-        if col == "mid":
-            rdf = rdf.feature.add_mid(cols=["prc_s0", "prc_s1"])
-            if len(products) > 1:
-                rdf = rdf.select(
-                    [pl.col("dts").alias("ts")]
-                    + [pl.col(f"mid_{product}") for product in products]
-                )
-            else:
-                rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("mid")])
-        elif col == "vwap":
-            rdf = rdf.feature.add_vwap(cols=["prc_s0", "prc_s1", "vol_s0", "vol_s1"])
-            if len(products) > 1:
-                rdf = rdf.select(
-                    [pl.col("dts").alias("ts")]
-                    + [pl.col(f"vwap_{product}") for product in products]
-                )
-            else:
-                rdf = rdf.select([pl.col("dts").alias("ts"), pl.col("vwap")])
-        return rdf
+        raise NotImplementedError
 
     def download(self, _product: str, _month: str, _type: str):
         raise NotImplementedError
