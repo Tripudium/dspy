@@ -2,15 +2,17 @@
 This module provides a simple interface to the pybit library functions.
 """
 
-import time
 import logging
+import time
+
 import numpy as np
 import pybit.unified_trading as bb
 
-# Local imports
-from dspy.api.bybit.config import Config
 from dspy.api.api_registry import register_api
 from dspy.api.base import Exchange
+
+# Local imports
+from dspy.api.bybit.config import Config
 
 logger = logging.getLogger("DS.exchanges")
 

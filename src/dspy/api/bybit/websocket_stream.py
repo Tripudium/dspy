@@ -38,7 +38,7 @@ import json
 import logging
 from typing import Callable, Dict, List, Optional
 
-from pybit import WebSocket
+from pybit.unified_trading import WebSocket
 
 from dspy.api.bybit.config import API_KEY, API_SECRET
 
@@ -99,15 +99,27 @@ class BybitWebSocketStream:
             api_secret=self.api_secret,
         )
         
-    def subscribe_orderbook(self, symbol: str, depth: int = 25, callback: Optional[Callable] = None):
+    def subscribe_orderbook(self, symbol: str, depth: int = 50, callback: Optional[Callable] = None):
         """
         Subscribe to order book updates.
         
         Args:
             symbol: Trading symbol (e.g., "BTCUSDT")
-            depth: Order book depth (1, 25, 50, 100, 200)
+            depth: Order book depth. Supported levels:
+                - Linear/Inverse: 1, 50, 200, 500
+                - Spot: 1, 50, 200
+                - Option: 25, 100
             callback: Function to call with order book data
         """
+        # Validate depth for linear markets (most common for USDT perpetuals)
+        valid_linear_depths = [1, 50, 200, 500]
+        valid_option_depths = [25, 100]
+        valid_spot_depths = [1, 50, 200]
+        
+        # For now, assume linear market if symbol ends with USDT
+        if symbol.endswith("USDT") and depth not in valid_linear_depths:
+            logger.warning(f"Depth {depth} not supported for linear markets. Using 50 instead.")
+            depth = 50
         if callback:
             self.callbacks["orderbook"].append(callback)
             

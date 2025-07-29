@@ -6,12 +6,14 @@ This script demonstrates how to:
 2. Process real-time updates with custom handlers
 3. Store streaming data in Polars DataFrames
 4. Calculate derived metrics from streaming data
+
+Note: For USDT perpetuals (like BTCUSDT), supported orderbook depths are: 1, 50, 200, 500
+      Depth 25 is only available for options markets.
 """
 
 import asyncio
 import time
 from collections import deque
-from datetime import datetime
 
 import polars as pl
 
@@ -148,7 +150,7 @@ class StreamDataCollector:
             if len(trades_df) > 0:
                 buy_vol = trades_df.filter(pl.col("side") == 1)["vol"].sum()
                 sell_vol = trades_df.filter(pl.col("side") == -1)["vol"].sum()
-                print(f"\nRecent trade flow:")
+                print("\nRecent trade flow:")
                 print(f"  Buy volume: {buy_vol:.4f}")
                 print(f"  Sell volume: {sell_vol:.4f}")
                 print(f"  Net flow: {buy_vol - sell_vol:.4f}")
@@ -167,7 +169,7 @@ async def main():
     
     for symbol in symbols:
         print(f"Subscribing to {symbol} streams...")
-        stream.subscribe_orderbook(symbol, depth=25, callback=collector.on_orderbook)
+        stream.subscribe_orderbook(symbol, depth=50, callback=collector.on_orderbook)
         stream.subscribe_trades(symbol, callback=collector.on_trade)
         stream.subscribe_ticker(symbol, callback=collector.on_ticker)
     
